@@ -1,0 +1,6 @@
+.env
+.venv/
+__pycache__/
+brahmastra.log
+fyers_token.txt
+brahmastra_signals.csv

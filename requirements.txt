@@ -1,0 +1,7 @@
+curl_cffi
+fyers_apiv3
+numpy
+pandas
+pyotp
+Requests
+python-dotenv
