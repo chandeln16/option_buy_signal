@@ -63,7 +63,7 @@ FYERS_TOTP_KEY=YOUR_32_CHAR_TOTP_KEY
 TELEGRAM_BOT_TOKEN=YOUR_BOT_TOKEN
 TELEGRAM_CHAT_ID=YOUR_CHAT_ID
 ```
-# 💻 How to Run the Ecosystem
+### 💻 How to Run the Ecosystem
 To get the full experience, run these components in separate terminal windows (or using `tmux/screen` on a cloud server):
 
 Terminal 1: Start the Trading Bot
