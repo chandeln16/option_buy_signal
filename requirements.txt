@@ -1,7 +1,9 @@
 curl_cffi
+Flask
+flask_cors
 fyers_apiv3
 numpy
 pandas
 pyotp
-Requests
 python-dotenv
+Requests
