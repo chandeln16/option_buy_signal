@@ -290,6 +290,9 @@ class FyersAuth:
 
 
 # ════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════
+#  DATA FETCHER (UPDATED FOR DASHBOARD LOGIC)
+# ════════════════════════════════════════════════════════════════
 class DataFetcher:
     def __init__(self, fyers, config: dict):
         self.fyers, self.config, self.sym = fyers, config, SYMBOL_MAP[config["INDEX"]]
@@ -307,7 +310,8 @@ class DataFetcher:
 
     def get_option_chain(self, strike_count: int = 5) -> dict:
         try:
-            resp = self.fyers.optionchain(data={"symbol": self.sym["index_symbol"], "strikecount": strike_count, "timestamp": ""})
+            # 🚀 Always fetch 50 strikes to ensure accurate ATM crossover detection
+            resp = self.fyers.optionchain(data={"symbol": self.sym["index_symbol"], "strikecount": 50, "timestamp": ""})
             return resp.get("data", {}) if resp.get("code") == 200 else {}
         except Exception: return {}
 
@@ -359,39 +363,90 @@ class Indicators:
 
 
 # ════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════
+#  PCR CALCULATOR (FIXED WITH DASHBOARD LOGIC)
+# ════════════════════════════════════════════════════════════════
 class PCRCalculator:
     def __init__(self, index: str, strike_count: int = 5):
         self.gap, self.strike_count = SYMBOL_MAP[index]["strike_gap"], strike_count
 
     def parse(self, chain_data: dict, spot: float) -> dict:
-        atm = int(round(spot / self.gap) * self.gap)
-        out = {"atm": atm, "spot": spot, "expiry": "", "strikes": [], "ce_total_chg_oi": 0.0, "pe_total_chg_oi": 0.0, "pcr": 1.0, "sentiment": "Neutral", "data_valid": False}
-        strikes_list = []
+        out = {"atm": 0, "spot": spot, "expiry": "", "strikes": [], "ce_total_chg_oi": 0.0, "pe_total_chg_oi": 0.0, "pcr": 1.0, "sentiment": "Neutral", "data_valid": False}
         try:
-            expiry_list = chain_data.get("expiryData", [])
-            if not expiry_list: return out
-            out["expiry"] = expiry_list[0].get("expiry", "")
-            strike_map = {int(i.get("strikePrice") or i.get("strike_price") or 0): {"ce_oi": (i.get("ce") or i.get("CE") or {}).get("oi", 0.0), "ce_chg_oi": (i.get("ce") or i.get("CE") or {}).get("change_oi", 0.0), "pe_oi": (i.get("pe") or i.get("PE") or {}).get("oi", 0.0), "pe_chg_oi": (i.get("pe") or i.get("PE") or {}).get("change_oi", 0.0)} for i in expiry_list[0].get("optionsChain", []) if (i.get("strikePrice") or i.get("strike_price"))}
-            ce_chg_total, pe_chg_total = 0.0, 0.0
-            for sp in [atm + i * self.gap for i in range(-self.strike_count, self.strike_count + 1)]:
-                d = strike_map.get(sp, {})
-                ce_chg_total += d.get("ce_chg_oi", 0.0)
-                pe_chg_total += d.get("pe_chg_oi", 0.0)
-                strikes_list.append({"strike": sp, "label": f"ATM{'+' if sp>atm else ''}{(sp-atm)//self.gap}" if sp!=atm else "ATM", "ce_oi": d.get("ce_oi",0), "pe_oi": d.get("pe_oi",0), "ce_chg_oi": d.get("ce_chg_oi",0), "pe_chg_oi": d.get("pe_chg_oi",0), "found": sp in strike_map})
+            options_chain = chain_data.get("optionsChain", [])
+            if not options_chain: return out
+
+            api_atm = float(chain_data.get("atm", 0))
+
+            # 🚀 Step 1: Flat JSON Parsing (Dashboard Style)
+            ce_data, pe_data, strikes = {}, {}, set()
+            for item in options_chain:
+                opt_type = item.get("option_type")
+                sp = float(item.get("strike_price", -1))
+                
+                if sp <= 0 or opt_type not in ["CE", "PE"]: continue
+                strikes.add(sp)
+                
+                chg_oi = float(item.get("oich", 0.0))
+                ltp = float(item.get("ltp", 0.0))
+                
+                if opt_type == "CE": ce_data[sp] = {"chg_oi": chg_oi, "ltp": ltp}
+                elif opt_type == "PE": pe_data[sp] = {"chg_oi": chg_oi, "ltp": ltp}
+
+            strikes_list = sorted(list(strikes))
+            if not strikes_list: return out
+
+            # Padding
+            for sp in strikes_list:
+                if sp not in ce_data: ce_data[sp] = {"chg_oi": 0.0, "ltp": 0.0}
+                if sp not in pe_data: pe_data[sp] = {"chg_oi": 0.0, "ltp": 0.0}
+
+            # 🚀 Step 2: SMART ATM LOGIC (LTP Crossover)
+            atm_closest = None
+            if api_atm <= 0:
+                min_diff = float('inf')
+                for sp in strikes_list:
+                    diff = abs(ce_data[sp]["ltp"] - pe_data[sp]["ltp"])
+                    if diff < min_diff:
+                        min_diff = diff
+                        atm_closest = sp
+                if atm_closest is None:
+                    atm_closest = strikes_list[len(strikes_list)//2]
+            else:
+                atm_closest = min(strikes_list, key=lambda x: abs(x - api_atm))
+
+            atm_index = strikes_list.index(atm_closest)
+
+            # 🚀 Step 3: Select Strikes (-5 to +5 based on user config)
+            start_idx = max(0, atm_index - self.strike_count)
+            end_idx = min(len(strikes_list) - 1, atm_index + self.strike_count)
+
+            tc_co, tp_co = 0.0, 0.0
+            for i in range(start_idx, end_idx + 1):
+                sp = strikes_list[i]
+                tc_co += ce_data[sp]["chg_oi"]
+                tp_co += pe_data[sp]["chg_oi"]
+
+            # 🚀 Step 4: PCR Calculation
+            pcr = round(tp_co / tc_co, 4) if tc_co != 0 else 0.0
             
-            out["strikes"] = strikes_list
-            out["ce_total_chg_oi"], out["pe_total_chg_oi"] = ce_chg_total, pe_chg_total
-            if ce_chg_total > 0: out["pcr"] = pe_chg_total / ce_chg_total
-            elif ce_chg_total < 0 and pe_chg_total >= 0: out["pcr"] = 0.40
-            elif ce_chg_total == 0 and pe_chg_total == 0: out["pcr"] = 1.0
-            else: out["pcr"] = abs(pe_chg_total) / abs(ce_chg_total) if ce_chg_total else 1.0
-            out["sentiment"] = "Extremely Bullish" if out["pcr"] < 0.7 else "Bullish" if out["pcr"] < 1.0 else "Bearish" if out["pcr"] <= 1.3 else "Extremely Bearish"
-            out["data_valid"] = True
+            # Setup Sentiment mapping for Trading Logic
+            sentiment = "Extremely Bullish" if pcr < 0.7 else "Bullish" if pcr < 1.0 else "Bearish" if pcr <= 1.3 else "Extremely Bearish"
+
+            out.update({
+                "atm": int(atm_closest),
+                "spot": api_atm if api_atm > 0 else float(atm_closest),
+                "ce_total_chg_oi": tc_co,
+                "pe_total_chg_oi": tp_co,
+                "pcr": pcr,
+                "sentiment": sentiment,
+                "data_valid": True
+            })
         except Exception: pass
         return out
 
     def print_table(self, pcr_data: dict):
-        if pcr_data.get("data_valid"): print(f"\n  OPTION CHAIN │ Expiry: {pcr_data['expiry']} │ ATM: {pcr_data['atm']} │ PCR: {pcr_data['pcr']:.4f}")
+        if pcr_data.get("data_valid"): print(f"\n  OPTION CHAIN │ ATM: {pcr_data['atm']} │ PCR: {pcr_data['pcr']:.4f}")
 
 
 # ════════════════════════════════════════════════════════════════
@@ -463,6 +518,12 @@ def is_market_hours() -> bool:
 
 # ════════════════════════════════════════════════════════════════
 def main():
+    # ── YEH RAHI TEST LINE (Isse yahan paste karein) ──
+    send_telegram_alert("Brahmastra Bot is Online! 🚀", CONFIG)
+    
+    auth, fyers = FyersAuth(CONFIG), None
+    # ... baki ka code waisa hi rehne dein
+    
     print("╔══════════════════════════════════════════════════════════════╗\n║   BRAHMASTRA OPTIONS SIGNAL GENERATOR  v3.1                 ║\n╚══════════════════════════════════════════════════════════════╝")
     
     auth, fyers = FyersAuth(CONFIG), None

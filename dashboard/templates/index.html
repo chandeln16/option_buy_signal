@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Index Live PCR Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-left">
+                <h1>📊 Live PCR & OI Analytics</h1>
+                <p>Automated Algorithmic Trading Dashboard</p>
+            </div>
+            <div class="header-right">
+                <div class="clock" id="live-clock">--:--:--</div>
+                <div class="last-updated">Last Updated: <span id="last-update-time">Fetching...</span></div>
+            </div>
+        </header>
+
+        <section class="cards-container" id="latest-cards">
+            </section>
+
+        <section class="history-section">
+            <div class="table-header">
+                <h2>🕐 Historical Data</h2>
+                <div class="controls">
+                    <label for="index-select">Index:</label>
+                    <select id="index-select">
+                        <option value="NIFTY50">NIFTY 50</option>
+                        <option value="BANKNIFTY">BANK NIFTY</option>
+                        <option value="SENSEX">SENSEX</option>
+                        <option value="BANKEX">BANKEX</option>
+                    </select>
+
+                    <label for="date-select">Date:</label>
+                    <input type="date" id="date-select">
+                    
+                    <button id="refresh-btn" onclick="fetchHistoryData()">🔄 Refresh</button>
+                </div>
+            </div>
+
+            <div class="table-wrapper">
+                <div id="loading-indicator" class="hidden">Loading data...</div>
+                <table id="history-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Spot Price</th>
+                            <th>ATM Strike</th>
+                            <th>CE Δ OI</th>
+                            <th>PE Δ OI</th>
+                            <th>PCR Value</th>
+                            <th>PCR % Δ</th>
+                            <th>Trend Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body">
+                        </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>

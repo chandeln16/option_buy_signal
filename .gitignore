@@ -4,3 +4,6 @@ __pycache__/
 brahmastra.log
 fyers_token.txt
 brahmastra_signals.csv
+oi_analytics.db       # <-- YEH ADD KAREIN
+*.db                  # <-- YEH ADD KAREIN
+oi_pcr_tracker.log    # <-- YEH ADD KAREIN
