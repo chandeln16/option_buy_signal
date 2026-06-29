@@ -81,6 +81,21 @@ python app.py
 ```
 Once the server starts, open `http://localhost:5000` in your browser.
 
+
+---
+## 🎯 Trading Strategy: The "Brahmastra" (Triple Confirmation + PCR)
+This ecosystem implements the **Brahmastra Strategy**, a triple-confirmation framework for high-probability directional trading.
+
+### Core Logic
+* **Triple Confirmation:** The system triggers an entry only when the **SuperTrend** (set to 20, 2), **MACD** (default settings), and **VWAP** align in the direction of the trend.
+* **Smart Capital Allocation:** * **Scenario A (PCR Supportive):** If the PCR is in favor of the trend, allocate up to **50% of your capital**.
+    * **Scenario B (PCR Against):** Even if the PCR opposes the trend, the trade is valid as a "Brahmastra," but restrict allocation to **25% of capital**.
+* **Trend Following:** The strategy focuses on trend-following rather than reversals, aiming to ride the momentum with the market flow.
+* **Exit Strategy:** Use the **MACD crossover** to book partial profits (e.g., 50%) to secure gains while letting the trend run.
+
+*Strategy source: [Best Intraday Option Trading Strategy - Pushkar Raj Thakur](https://youtu.be/1REfmPEfvVk)*
+---
+
 ## 🛡️ Security & Compliance
 - Secure Credentials: Passwords and API tokens are completely hidden via the .env file (ignored in .gitignore).
 - Database Management: The SQLite database is lightweight and auto-creates required tables and columns (like Spot Price) on the fly.
