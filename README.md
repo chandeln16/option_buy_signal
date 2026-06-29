@@ -49,7 +49,6 @@ cd option_buy_signal
 ### 2. Install Dependencies
 ```
 pip install -r requirements.txt
-pip install flask flask-cors
 ```
 
 ### 3. Environment Configuration
@@ -83,7 +82,7 @@ Once the server starts, open `http://localhost:5000` in your browser.
 
 
 ---
-## 🎯 Trading Strategy: The "Brahmastra" (Triple Confirmation + PCR)
+### 🎯 Trading Strategy: The "Brahmastra" (Triple Confirmation + PCR)
 This ecosystem implements the **Brahmastra Strategy**, a triple-confirmation framework for high-probability directional trading.
 
 ### Core Logic
