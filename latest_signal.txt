@@ -1,14 +1,14 @@
 ════════════════════════════════════════════════════════════════════════
-  ⚪ BRAHMASTRA SIGNAL  │  2026-07-01 13:25:15
+  ⚪ BRAHMASTRA SIGNAL  │  2026-07-01 13:31:17
 ════════════════════════════════════════════════════════════════════════
   Signal       : NO TRADE
   Confidence   : No Signal
   Capital %    : 0%
-  Entry Price  : ₹24017.35
+  Entry Price  : ₹24011.45
   Stop Loss    : N/A
   Exit Rule    : Wait for alignment
 ────────────────────────────────────────────────────────────────────────
-  PCR (Chg OI) : 1.9270  →  Extremely Bearish
+  PCR (Chg OI) : 1.9409  →  Extremely Bearish
   SuperTrend   : N/A
   MACD         : N/A
   VWAP         : N/A
