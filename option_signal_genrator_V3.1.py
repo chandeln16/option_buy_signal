@@ -24,6 +24,37 @@ from typing import Optional, Tuple, List, Dict, Any
 
 import numpy as np
 import pandas as pd
+import sqlite3
+import datetime
+
+def init_signal_db():
+    conn = sqlite3.connect('oi_analytics.db')
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS brahmastra_signals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT,
+            index_name TEXT,
+            signal_type TEXT,
+            price REAL
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+def save_signal_to_db(index_name, signal_type, price):
+    try:
+        conn = sqlite3.connect('oi_analytics.db')
+        cursor = conn.cursor()
+        timestamp = datetime.datetime.now().strftime('%H:%M:%S')
+        cursor.execute('INSERT INTO brahmastra_signals (timestamp, index_name, signal_type, price) VALUES (?, ?, ?, ?)', (timestamp, index_name, signal_type, price))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"DB Error: {e}")
+
+# Database table create karne ke liye call
+init_signal_db()
 
 # Env file se secrets load karein
 load_dotenv()
@@ -120,24 +151,49 @@ class SignalOutput:
         self.pe_conditions = pe_conditions or {}
 
     def display(self):
-        SEP, sep = "═" * 72, "─" * 72
+        SEP = "═" * 72
+        sep = "─" * 72
         icon = {"BUY CE": "🟢", "BUY PE": "🔴", "NO TRADE": "⚪"}.get(self.signal, "")
-        print(f"\n{SEP}\n  {icon} BRAHMASTRA SIGNAL  │  {self.timestamp}\n{SEP}")
-        print(f"  Signal       : {self.signal}\n  Confidence   : {self.confidence}\n  Capital %    : {self.capital_pct}%\n  Entry Price  : ₹{self.entry_price:.2f}")
-        print(f"  Stop Loss    : ₹{self.stop_loss:.2f}" if self.stop_loss else "  Stop Loss    : N/A")
-        print(f"  Exit Rule    : {self.exit_rule}\n{sep}\n  PCR (Chg OI) : {self.pcr:.4f}  →  {self.pcr_sentiment}\n  SuperTrend   : {self.st_status}\n  MACD         : {self.macd_status}\n  VWAP         : {self.vwap_status}\n{sep}")
+        
+        lines = []
+        lines.append(f"{SEP}")
+        lines.append(f"  {icon} BRAHMASTRA SIGNAL  │  {self.timestamp}")
+        lines.append(f"{SEP}")
+        lines.append(f"  Signal       : {self.signal}")
+        lines.append(f"  Confidence   : {self.confidence}")
+        lines.append(f"  Capital %    : {self.capital_pct}%")
+        lines.append(f"  Entry Price  : ₹{self.entry_price:.2f}")
+        lines.append(f"  Stop Loss    : ₹{self.stop_loss:.2f}" if self.stop_loss else "  Stop Loss    : N/A")
+        lines.append(f"  Exit Rule    : {self.exit_rule}")
+        lines.append(f"{sep}")
+        lines.append(f"  PCR (Chg OI) : {self.pcr:.4f}  →  {self.pcr_sentiment}")
+        lines.append(f"  SuperTrend   : {self.st_status}")
+        lines.append(f"  MACD         : {self.macd_status}")
+        lines.append(f"  VWAP         : {self.vwap_status}")
+        lines.append(f"{sep}")
+        
         if self.signal != "NO TRADE":
-            print("  ✅ Confirmed Conditions:")
-            for r in self.reasons: print(f"     ✓ {r}")
+            lines.append("  ✅ Confirmed Conditions:")
+            for r in self.reasons: lines.append(f"     ✓ {r}")
         else:
-            print("  ❌ Conditions Status (BUY CE):")
-            for cond, passed in self.ce_conditions.items(): print(f"     {'✓' if passed else '✗'} {cond}")
-            print("  ❌ Conditions Status (BUY PE):")
-            for cond, passed in self.pe_conditions.items(): print(f"     {'✓' if passed else '✗'} {cond}")
+            lines.append("  ❌ Conditions Status (BUY CE):")
+            for cond, passed in self.ce_conditions.items(): lines.append(f"     {'✓' if passed else '✗'} {cond}")
+            lines.append("  ❌ Conditions Status (BUY PE):")
+            for cond, passed in self.pe_conditions.items(): lines.append(f"     {'✓' if passed else '✗'} {cond}")
             if self.reasons:
-                print("  ⚠️  Blockers:")
-                for r in self.reasons: print(f"     • {r}")
-        print(SEP + "\n")
+                lines.append("  ⚠️  Blockers:")
+                for r in self.reasons: lines.append(f"     • {r}")
+        lines.append(f"{SEP}")
+        
+        output_text = "\n".join(lines)
+        print("\n" + output_text + "\n")
+        
+        # 🟢 NAYA LOGIC: Is text ko file mein save karna Dashboard ke liye
+        try:
+            with open("latest_signal.txt", "w", encoding="utf-8") as f:
+                f.write(output_text)
+        except Exception:
+            pass
 
     def log_signal(self):
         row = {"timestamp": self.timestamp, "signal": self.signal, "confidence": self.confidence, "capital_pct": self.capital_pct, "entry_price": self.entry_price, "stop_loss": self.stop_loss, "pcr": round(self.pcr, 4), "pcr_sentiment": self.pcr_sentiment}
@@ -558,6 +614,8 @@ def main():
             if signal.signal in ("BUY CE", "BUY PE") and signal.signal != last_signal:
                 exit_mon.set_position(signal)
                 send_telegram_alert(f"🚨 <b>BRAHMASTRA: {signal.signal}</b>\n\n<b>Index:</b> {CONFIG['INDEX']}\n<b>Conf:</b> {signal.confidence} ({signal.capital_pct}%)\n<b>Entry:</b> ₹{signal.entry_price:.2f}\n<b>SL:</b> ₹{signal.stop_loss:.2f}\n<b>PCR:</b> {signal.pcr:.4f}", CONFIG)
+                # 👇 BAs YEH EK LINE ADD KARNI HAI 👇
+                save_signal_to_db(CONFIG['INDEX'], signal.signal, signal.entry_price)
             last_signal = signal.signal
 
             time.sleep(CONFIG["REFRESH_INTERVAL"])

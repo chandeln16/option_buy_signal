@@ -1,0 +1,28 @@
+════════════════════════════════════════════════════════════════════════
+  ⚪ BRAHMASTRA SIGNAL  │  2026-07-01 13:25:15
+════════════════════════════════════════════════════════════════════════
+  Signal       : NO TRADE
+  Confidence   : No Signal
+  Capital %    : 0%
+  Entry Price  : ₹24017.35
+  Stop Loss    : N/A
+  Exit Rule    : Wait for alignment
+────────────────────────────────────────────────────────────────────────
+  PCR (Chg OI) : 1.9270  →  Extremely Bearish
+  SuperTrend   : N/A
+  MACD         : N/A
+  VWAP         : N/A
+────────────────────────────────────────────────────────────────────────
+  ❌ Conditions Status (BUY CE):
+     ✗ ① Fresh ST BUY
+     ✗ ② Bullish MACD Cross
+     ✓ ③ Price >= VWAP
+     ✗ ④ PCR < 1.00
+  ❌ Conditions Status (BUY PE):
+     ✗ ① Fresh ST SELL
+     ✗ ② Bearish MACD Cross
+     ✗ ③ Price <= VWAP
+     ✓ ④ PCR > 1.00
+  ⚠️  Blockers:
+     • SuperTrend Bullish but MACD Bearish
+════════════════════════════════════════════════════════════════════════

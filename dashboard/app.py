@@ -45,5 +45,64 @@ def get_history():
     rows = query_db(query, (index_name, f"{date}%"))
     return jsonify(rows)
 
+@app.route('/api/latest_signal_text')
+def get_latest_signal_text():
+    try:
+        # File folder ke bahar hai, isliye '../'
+        with open('../latest_signal.txt', 'r', encoding='utf-8') as f:
+            data = f.read()
+        return jsonify({"status": "success", "data": data})
+    except Exception as e:
+        return jsonify({"status": "error", "message": "Waiting for Brahmastra Bot..."})
+    
+    
+from flask import request, jsonify
+import sqlite3
+
+@app.route('/api/pcr_trend')
+def get_pcr_trend():
+    index_name = request.args.get('index', 'NIFTY50')
+    # Default: aaj ki date (agar frontend se nahi aayi)
+    date = request.args.get('date', datetime.datetime.now().strftime("%Y-%m-%d"))
+
+    try:
+        # DB_PATH use karo (consistent with baaki routes)
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+            # Date filter lagao, ORDER BY ASC taaki chart left→right sahi dikhe
+            query = """
+                SELECT date_time, pcr_value
+                FROM pcr_trend_data
+                WHERE index_name = ? AND date_time LIKE ?
+                ORDER BY id ASC
+            """
+            cursor.execute(query, (index_name, f"{date}%"))
+            data = cursor.fetchall()
+
+        return jsonify({
+            "status":     "success",
+            "date":       date,
+            "index":      index_name,
+            "count":      len(data),
+            "timestamps": [row[0].split(' ')[1][:5] for row in data],  # HH:MM format
+            "pcr_values": [row[1] for row in data]
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+import sqlite3
+
+@app.route('/api/live_signals')
+def get_live_signals():
+    try:
+        conn = sqlite3.connect('../oi_analytics.db') 
+        cursor = conn.cursor()
+        cursor.execute("SELECT timestamp, index_name, signal_type, price FROM brahmastra_signals ORDER BY id DESC LIMIT 5")
+        data = cursor.fetchall()
+        conn.close()
+
+        signals = [{"time": r[0], "index": r[1], "type": r[2], "price": r[3]} for r in data]
+        return jsonify({"status": "success", "data": signals})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})

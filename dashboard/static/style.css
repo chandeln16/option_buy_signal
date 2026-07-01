@@ -97,7 +97,7 @@ header {
     border-radius: 8px;
     border: 1px solid var(--border-color);
     overflow-y: auto;
-    max-height: 500px;
+    max-height: 2245px;
     position: relative;
 }
 

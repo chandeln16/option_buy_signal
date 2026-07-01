@@ -1,0 +1,53 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Start Brahmastra",
+            "type": "shell",
+            "command": ".\\.venv\\Scripts\\Activate.ps1; python option_signal_genrator_V3.1.py",
+            "options": {
+                "cwd": "C:\\Users\\Admin\\Desktop\\test"
+            },
+            "presentation": {
+                "group": "my-trading-project",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Start PCR Tracker",
+            "type": "shell",
+            "command": ".\\.venv\\Scripts\\Activate.ps1; python oi_pcr_tracker_V1.py",
+            "options": {
+                "cwd": "C:\\Users\\Admin\\Desktop\\test"
+            },
+            "presentation": {
+                "group": "my-trading-project",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Start Dashboard",
+            "type": "shell",
+            "command": "..\\.venv\\Scripts\\Activate.ps1; python app.py",
+            "options": {
+                "cwd": "C:\\Users\\Admin\\Desktop\\test\\dashboard"
+            },
+            "presentation": {
+                "group": "my-trading-project",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Run Whole System",
+            "dependsOn": [
+                "Start Brahmastra",
+                "Start PCR Tracker",
+                "Start Dashboard"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ]
+}

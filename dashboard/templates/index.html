@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Multi-Index Live PCR Dashboard</title>
     <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="container">
@@ -24,6 +25,44 @@
 
         <section class="history-section">
             <div class="table-header">
+<div class="container-fluid mt-5 mb-4">
+    <div class="card shadow border-secondary">
+        <div class="card-header bg-dark text-white border-secondary">
+            <h5 class="mb-0">🚨 Live Brahmastra Status (Auto-Updates 15s)</h5>
+        </div>
+        <div class="card-body bg-black p-0">
+            <pre id="live-signal-text" style="background-color: #000; color: #ffffff; padding: 20px; margin: 0; font-family: 'Courier New', Courier, monospace; font-size: 15px; white-space: pre-wrap; border: none;">Loading data...</pre>
+        </div>
+    </div>
+</div>
+<br> 
+<div class="container-fluid mt-4" style="height: 100%;  width: 100%;">
+    <div class="card shadow border-secondary">
+        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">📈 Live PCR Trend Analysis</h5>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <label style="color: #94A3B8; font-size: 13px; margin: 0;">📅 Date:</label>
+                <input type="date" id="chartDateSelector"
+                       class="form-control bg-black text-white border-secondary"
+                       style="width: auto; font-size: 13px; padding: 5px 10px; cursor: pointer;"
+                       onchange="fetchChartData()">
+                <select id="indexSelector" class="form-select w-auto bg-black text-white border-secondary" onchange="fetchChartData()">
+                    <option value="NIFTY50">NIFTY50</option>
+                    <option value="BANKNIFTY">BANKNIFTY</option>
+                    <option value="SENSEX">SENSEX</option>
+                    <option value="BANKEX">BANKEX</option>
+                </select>
+            </div>
+        </div>
+        <div class="card-body bg-black" style="height: 400px;">
+            <canvas id="pcrChart"></canvas>
+        </div>
+    </div>
+</div>
+
+    </div>
+</div>
+</div>
                 <h2>🕐 Historical Data</h2>
                 <div class="controls">
                     <label for="index-select">Index:</label>
@@ -63,6 +102,137 @@
         </section>
     </div>
 
+<script>
+    let pcrChart = null;
+
+    // 1. CHART LOGIC
+    function fetchChartData() {
+        const idx  = document.getElementById('indexSelector').value;
+        const date = document.getElementById('chartDateSelector').value;
+        fetch(`/api/pcr_trend?index=${idx}&date=${date}`)
+            .then(res => res.json())
+            .then(data => {
+                if(pcrChart) pcrChart.destroy();
+                const ctx = document.getElementById('pcrChart').getContext('2d');
+
+                // Agar koi data nahi mila
+                if (!data.pcr_values || data.pcr_values.length === 0) {
+                    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+                    ctx.fillStyle = '#94A3B8';
+                    ctx.font = '16px Segoe UI';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`No data found for ${idx} on ${date}`, ctx.canvas.width / 2, ctx.canvas.height / 2);
+                    return;
+                }
+
+                pcrChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.timestamps,
+                        datasets: [{ 
+                            label: `PCR Trend — ${idx} (${date})`, 
+                            data: data.pcr_values, 
+                            borderColor: '#00ff00', 
+                            tension: 0.3, 
+                            fill: true, 
+                            backgroundColor: 'rgba(0,255,0,0.05)',
+                            pointRadius: 3,
+                            pointHoverRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { labels: { color: '#ffffff' } },
+                            tooltip: {
+                                callbacks: {
+                                    title: (items) => `Time: ${items[0].label}`,
+                                    label: (item)  => `PCR: ${item.raw.toFixed(4)}`
+                                }
+                            }
+                        },
+                        scales: {
+                            y: { ticks: { color: '#ffffff' }, grid: { color: '#1E2A3A' } },
+                            x: { ticks: { color: '#ffffff', maxTicksLimit: 20 }, grid: { color: '#1E2A3A' } }
+                        }
+                    }
+                });
+            })
+            .catch(err => console.error('Chart fetch error:', err));
+    }
+
+    // 2. SIGNAL LOGIC
+    function escapeHTML(text) {
+        return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function fetchSignalText() {
+        fetch('/api/latest_signal_text')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    let safeText = escapeHTML(data.data);
+                    safeText = safeText.replace(/✓/g, '<span style="color: #00ff00; font-weight: bold;">✓</span>');
+                    safeText = safeText.replace(/✗/g, '<span style="color: #ff3333; font-weight: bold;">✗</span>');
+                    document.getElementById('live-signal-text').innerHTML = safeText;
+                }
+            });
+    }
+
+    // Initialize — chart date default = aaj ki date (IST)
+    const todayIST = new Date(new Date().getTime() + (5.5 * 60 * 60 * 1000))
+                        .toISOString().split('T')[0];
+    document.getElementById('chartDateSelector').value = todayIST;
+
+    fetchChartData();
+    fetchSignalText();
+    setInterval(() => {
+        // Auto-refresh sirf tab karo jab selected date aaj ki ho
+        const selected = document.getElementById('chartDateSelector').value;
+        if (selected === new Date(new Date().getTime() + (5.5 * 60 * 60 * 1000)).toISOString().split('T')[0]) {
+            fetchChartData();
+        }
+        fetchSignalText();
+    }, 15000);
+</script>    
+<script>
+    // Text ko secure aur HTML format mein convert karne ka function (Jaise < ya > sign ko bachana)
+    function escapeHTML(text) {
+        return text.replace(/&/g, "&amp;")
+                   .replace(/</g, "&lt;")
+                   .replace(/>/g, "&gt;");
+    }
+
+    function fetchSignalText() {
+        fetch('/api/latest_signal_text')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // 1. Text format ko safe banayein (VWAP >= jaisi conditions ke liye zaroori hai)
+                    let safeText = escapeHTML(data.data);
+                    
+                    // 2. ✓ (Check) ko Green color tag mein convert karein
+                    safeText = safeText.replace(/✓/g, '<span style="color: #00ff00; font-weight: bold;">✓</span>');
+                    
+                    // 3. ✗ (Cross) ko Red color tag mein convert karein
+                    safeText = safeText.replace(/✗/g, '<span style="color: #ff3333; font-weight: bold;">✗</span>');
+
+                    // 4. Data ko screen par lagayein (text ki jagah innerHTML use kiya kyunki ab humne color tags dale hain)
+                    document.getElementById('live-signal-text').innerHTML = safeText;
+                } else {
+                    document.getElementById('live-signal-text').innerHTML = "Waiting for bot to generate output...";
+                }
+            })
+            .catch(err => console.error("Signal Fetch Error:", err));
+    }
+
+    // Page khulte hi run karega
+    fetchSignalText();
+
+    // Har 15 second mein text update karega
+    setInterval(fetchSignalText, 15000);
+</script>
     <script src="/static/script.js"></script>
 </body>
 </html>
